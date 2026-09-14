@@ -35,7 +35,7 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
     errs: [dynamic]Error
     defer delete(errs)
 
-    pids, collect_errs := collect_pids(commands, pipes, shell_state)
+    pids, collect_errs := exec_and_collect_pids(commands, pipes, shell_state)
     defer delete(pids)
     defer delete(collect_errs)
     if len(collect_errs) > 0 {
@@ -54,6 +54,38 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
 
     return utils.snapshot_dynamic_array(Error, errs)
 }
+
+exec_and_collect_pids :: proc(
+    commands: []parser.Parsed_Command, 
+    pipes: []Process_Pipe, 
+    shell_state: ^models.Shell_state
+) -> (_pids: []posix.pid_t, _errs: []Error) {
+
+    errs := make([dynamic]Error)
+    pids := make([dynamic]posix.pid_t)
+    defer delete(errs)
+    defer delete(pids)
+
+    for command, i in commands {
+        command_io := default_command_io()
+
+        if i > 0 {
+            command_io.stdin_source = pipes[i - 1].reader
+        }
+        if i < len(commands) - 1 {
+            command_io.stdout_target = pipes[i].writer
+        }
+
+        pid, exec_errs := exec_command(command, shell_state, command_io)
+        if len(exec_errs) > 0 || pid == BAD_PID {
+            append(&errs, ..exec_errs)
+        } else {
+            append(&pids, pid)
+        }
+    }
+    return utils.snapshot_dynamic_array(posix.pid_t, pids), utils.snapshot_dynamic_array(Error, errs)
+}
+
 
 exec_command :: proc(
     command: parser.Parsed_Command,
@@ -86,34 +118,4 @@ exec_command :: proc(
             }
     }
     return cmd_pid, utils.snapshot_dynamic_array(Error, errs)
-}
-
-collect_pids :: proc(
-    commands: []parser.Parsed_Command, 
-    pipes: []Process_Pipe, 
-    shell_state: ^models.Shell_state
-) -> (_pids: []posix.pid_t, _errs: []Error) {
-
-    errs: [dynamic]Error
-    pids := make([]posix.pid_t, len(commands))
-    defer delete(errs)
-
-    for command, i in commands {
-        command_io := default_command_io()
-
-        if i > 0 {
-            command_io.stdin_source = pipes[i - 1].reader
-        }
-        if i < len(commands) - 1 {
-            command_io.stdout_target = pipes[i].writer
-        }
-
-        pid, exec_errs := exec_command(command, shell_state, command_io)
-        if len(exec_errs) > 0 || pid == BAD_PID {
-            append(&errs, ..exec_errs)
-        } else {
-            pids[i] = pid
-        }
-    }
-    return pids, utils.snapshot_dynamic_array(Error, errs)
 }
