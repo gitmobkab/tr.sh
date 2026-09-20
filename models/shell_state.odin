@@ -9,8 +9,9 @@ Shell_state :: struct {
     cwd: string,
 
     pgid: posix.pid_t,
-    
+    jobs: map[int]Job_Entry,
     public_env: map[string]string,
+    ignored_signals: []posix.Signal,
 
     // do not confuse with the public env passed to programs (not used until we support variables lookup)
     private_env: map[string]string,
@@ -19,8 +20,12 @@ Shell_state :: struct {
     exit_code: u8,
 }
 
-init_shell_state :: proc() -> (Shell_state, os.Error) {
-    state := Shell_state{ should_exit = false }
+init_shell_state :: proc() -> (Shell_state, Error) {
+    state := Shell_state{
+        ignored_signals = {.SIGINT, .SIGTTOU, .SIGTTIN},
+        should_exit = false 
+    }
+    
     if working_dir, err := os.get_working_directory(context.allocator); err != nil {
         return {}, err
     } else {
@@ -33,7 +38,11 @@ init_shell_state :: proc() -> (Shell_state, os.Error) {
         utils.populate_env(&state.public_env, environ)
     }
 
-    state.pgid = posix.getpgid(0)
+    if pgid := posix.getpgid(0); pgid == -1 {
+        return {}, posix.errno()
+    } else {
+        state.pgid = pgid
+    }
     
     return state, nil
 }
