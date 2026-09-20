@@ -1,6 +1,5 @@
 package exec
 
-import "core:c"
 import "core:sys/posix"
 import "core:os"
 

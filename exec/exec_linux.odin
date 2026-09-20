@@ -42,16 +42,29 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
         append(&errs, ..collect_errs)
     }
 
+    pids_not_empty := len(pids) >= 1
+    if pids_not_empty {
+        result := posix.tcsetpgrp(posix.STDIN_FILENO, pids[0])
+        if result == .FAIL {
+            append(&errs, posix.errno())
+        }
+    }
+    
     // don't intend on using it right now
     global_stat_loc: i32
     for pid in pids {
         posix.waitpid(pid, &global_stat_loc, {.UNTRACED})
     }
-
+    
     for pipe, i in pipes {
         close_pipe(pipe)
     }
-
+    if pids_not_empty {
+        result := posix.tcsetpgrp(posix.STDIN_FILENO, shell_state.pgid)
+        if result == .FAIL {
+            append(&errs, posix.errno())
+        }
+    }
     return utils.snapshot_dynamic_array(Error, errs)
 }
 
@@ -66,6 +79,7 @@ exec_and_collect_pids :: proc(
     defer delete(errs)
     defer delete(pids)
 
+    pgid: posix.pid_t = BAD_PID
     for command, i in commands {
         command_io := default_command_io()
 
@@ -76,11 +90,15 @@ exec_and_collect_pids :: proc(
             command_io.stdout_target = pipes[i].writer
         }
 
-        pid, exec_errs := exec_command(command, shell_state, command_io)
+        pid, exec_errs := exec_command(command, shell_state, command_io, pgid)
         if len(exec_errs) > 0 || pid == BAD_PID {
             append(&errs, ..exec_errs)
         } else {
             append(&pids, pid)
+        }
+
+        if len(pids) >= 1 && pgid == BAD_PID {
+            pgid = pids[0]
         }
     }
     return utils.snapshot_dynamic_array(posix.pid_t, pids), utils.snapshot_dynamic_array(Error, errs)
@@ -91,6 +109,7 @@ exec_command :: proc(
     command: parser.Parsed_Command,
     shell_state: ^models.Shell_state,
     command_io: Command_IO,
+    pgid: posix.pid_t
 ) -> (_pid: posix.pid_t, _errs: []Error) {
 
     found_command, search_err := lookup.search_command(command.argv[0])
@@ -110,7 +129,7 @@ exec_command :: proc(
             }
         case .External:
             environ := utils.env_store_to_environ(shell_state.public_env)
-            pid, exec_errs := exec_external(found_command.path, command.argv, environ, command_io, command.redirects)
+            pid, exec_errs := exec_external(found_command.path, command.argv, environ, command_io, command.redirects, pgid)
             if len(exec_errs) > 0 || pid == BAD_PID {
                 append(&errs, ..exec_errs)
             } else {

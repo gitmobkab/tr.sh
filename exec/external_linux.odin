@@ -13,6 +13,7 @@ exec_external :: proc(
     envp: []string,
     command_io: Command_IO,
     redirects: []parser.Redirect,
+    pgid: posix.pid_t,
 ) -> (_pid: posix.pid_t, _errs: []Error) {
 
     fds, errs := setup_redirects(redirects)
@@ -30,7 +31,8 @@ exec_external :: proc(
         case 0:
             setup_process_io(command_io)
             dup_redirects(redirects, fds)
-            signals.default_sigint()
+            signals.restore_default_signal(.SIGINT)
+            set_pgid(pid, pgid)
 
             path := strings.clone_to_cstring(command_path)
             c_argv := utils.strings_to_cstrings(argv)
@@ -40,8 +42,17 @@ exec_external :: proc(
             posix.exit(1) // shouldn't happen, just a safe guard
         case :
             close_command_io(command_io)
+            set_pgid(pid, pgid)
     }
     return pid, errs
+}
+
+set_pgid :: proc(pid, pgid: posix.pid_t) {
+    if pgid == BAD_PID {
+        posix.setpgid(pid, pid)
+    } else{
+        posix.setpgid(pid, pgid)
+    }
 }
 
 setup_process_io :: proc(command_io: Command_IO) {
