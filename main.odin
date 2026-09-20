@@ -13,19 +13,15 @@ import "lexer"
 import "exec"
 
 PROMPT :: "TRSH > "
-IGNORED_SIGNALS := []posix.Signal{
-    .SIGINT, .SIGTTOU, .SIGTTIN
-}
 
 main :: proc() {
 
-    signals.ignore_signals(..IGNORED_SIGNALS)
     shell_state, err := models.init_shell_state()
     if err != nil {
         fmt.println(err)
         return
     }
-
+    signals.ignore_signals(..shell_state.ignored_signals)
 
     for !shell_state.should_exit {
         if shell_iteration(&shell_state) != nil {
