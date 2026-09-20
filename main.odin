@@ -1,5 +1,6 @@
 package main
 
+import "core:sys/posix"
 import "core:os"
 import "core:fmt"
 
@@ -12,15 +13,19 @@ import "lexer"
 import "exec"
 
 PROMPT :: "TRSH > "
+IGNORED_SIGNALS := []posix.Signal{
+    .SIGINT, .SIGTTOU, .SIGTTIN
+}
 
 main :: proc() {
 
-    signals.ignore_sigint()
+    signals.ignore_signals(..IGNORED_SIGNALS)
     shell_state, err := models.init_shell_state()
     if err != nil {
         fmt.println(err)
         return
     }
+
 
     for !shell_state.should_exit {
         if shell_iteration(&shell_state) != nil {
@@ -48,7 +53,7 @@ shell_iteration :: proc(shell_state: ^models.Shell_state) -> os.Error {
     defer delete(errs)
 
     if len(errs) > 0 {
-        fmt.println("MAIN:",errs)
+        fmt.println(errs)
         return nil
     }
     return nil
