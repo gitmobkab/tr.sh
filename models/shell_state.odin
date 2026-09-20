@@ -1,11 +1,14 @@
 package models
 
 import "core:os"
+import "core:sys/posix"
 
 import "../utils"
 
 Shell_state :: struct {
     cwd: string,
+
+    pgid: posix.pid_t,
     
     public_env: map[string]string,
 
@@ -30,5 +33,7 @@ init_shell_state :: proc() -> (Shell_state, os.Error) {
         utils.populate_env(&state.public_env, environ)
     }
 
+    state.pgid = posix.getpgid(0)
+    
     return state, nil
 }
