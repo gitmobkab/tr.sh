@@ -11,7 +11,7 @@ Shell_state :: struct {
     pgid: posix.pid_t,
     jobs: map[int]Job_Entry,
     public_env: map[string]string,
-    ignored_signals: []posix.Signal,
+    ignored_signals: [3]posix.Signal,
 
     // do not confuse with the public env passed to programs (not used until we support variables lookup)
     private_env: map[string]string,
@@ -22,7 +22,7 @@ Shell_state :: struct {
 
 init_shell_state :: proc() -> (Shell_state, Error) {
     state := Shell_state{
-        ignored_signals = {.SIGINT, .SIGTTOU, .SIGTTIN},
+        ignored_signals = [3]posix.Signal{.SIGINT, .SIGTTOU, .SIGTTIN},
         should_exit = false 
     }
     

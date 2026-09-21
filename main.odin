@@ -1,6 +1,5 @@
 package main
 
-import "core:sys/posix"
 import "core:os"
 import "core:fmt"
 
@@ -21,7 +20,7 @@ main :: proc() {
         fmt.println(err)
         return
     }
-    signals.ignore_signals(..shell_state.ignored_signals)
+    signals.ignore_signals(..shell_state.ignored_signals[:])
 
     for !shell_state.should_exit {
         if shell_iteration(&shell_state) != nil {
