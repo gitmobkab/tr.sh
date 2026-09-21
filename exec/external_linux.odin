@@ -14,6 +14,7 @@ exec_external :: proc(
     command_io: Command_IO,
     redirects: []parser.Redirect,
     pgid: posix.pid_t,
+    signals_to_restore: []posix.Signal,
 ) -> (_pid: posix.pid_t, _errs: []Error) {
 
     fds, errs := setup_redirects(redirects)
@@ -31,7 +32,7 @@ exec_external :: proc(
         case 0:
             setup_process_io(command_io)
             dup_redirects(redirects, fds)
-            signals.restore_default_signal(.SIGINT)
+            signals.restore_default_signals(..signals_to_restore)
             set_pgid(pid, pgid)
 
             path := strings.clone_to_cstring(command_path)

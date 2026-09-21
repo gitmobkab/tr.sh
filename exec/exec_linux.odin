@@ -55,7 +55,7 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
     for pid in pids {
         posix.waitpid(pid, &global_stat_loc, {.UNTRACED})
     }
-    
+
     for pipe, i in pipes {
         close_pipe(pipe)
     }
@@ -129,7 +129,7 @@ exec_command :: proc(
             }
         case .External:
             environ := utils.env_store_to_environ(shell_state.public_env)
-            pid, exec_errs := exec_external(found_command.path, command.argv, environ, command_io, command.redirects, pgid)
+            pid, exec_errs := exec_external(found_command.path, command.argv, environ, command_io, command.redirects, pgid, shell_state.ignored_signals[:])
             if len(exec_errs) > 0 || pid == BAD_PID {
                 append(&errs, ..exec_errs)
             } else {
