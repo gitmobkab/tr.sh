@@ -1,4 +1,0 @@
-- which command
-- extend alias to alias [key=value]
-- make a custom command that abstracts the command lookup (so builtins.which and main.execute can use it)
-- maybe make a whence like zsh
