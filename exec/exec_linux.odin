@@ -26,7 +26,7 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_stat
 }
 
 
-exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Shell_state) -> []Error {
+exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Shell_state, wait: bool = true) -> []Error {
     pipes, pipe_errors := init_pipes(len(commands) - 1)
     if len(pipe_errors) > 0 {
         return pipe_errors
@@ -43,10 +43,10 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
 
     pids_not_empty := len(pids) >= 1
     if pids_not_empty {
-        result := posix.tcsetpgrp(posix.STDIN_FILENO, pids[0])
-        if result == .FAIL {
-            append(&errs, posix.errno())
-        }
+        set_foreground_pgrp(pids[0], &errs)
+    }
+    defer if pids_not_empty {
+        set_foreground_pgrp(shell_state.pgid, &errs)
     }
     
     // don't intend on using it right now
@@ -58,13 +58,15 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
     for pipe, i in pipes {
         close_pipe(pipe)
     }
-    if pids_not_empty {
-        result := posix.tcsetpgrp(posix.STDIN_FILENO, shell_state.pgid)
-        if result == .FAIL {
-            append(&errs, posix.errno())
-        }
-    }
+    
     return utils.snapshot_dynamic_array(Error, errs)
+}
+
+set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]Error) {
+    result := posix.tcsetpgrp(posix.STDIN_FILENO, pgid)
+    if result == .FAIL {
+        append(errs, posix.errno())
+    }
 }
 
 exec_and_collect_pids :: proc(
