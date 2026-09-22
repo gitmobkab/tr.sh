@@ -33,7 +33,7 @@ exec_builtin :: proc(
         append(&exec_errs, err)
     }
     
-    // restore saved fildes
+    // unnecessary comment 2
     setup_process_io(saved_io)
 
     return utils.snapshot_dynamic_array(Error, exec_errs)
