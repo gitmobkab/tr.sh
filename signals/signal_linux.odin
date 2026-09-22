@@ -16,16 +16,16 @@ restore_default_signals :: proc(signals: ..posix.Signal) {
 }
 
 ignore_signal :: proc(signal: posix.Signal) {
-    act: posix.sigaction_t
-    act.sa_handler = auto_cast posix.SIG_IGN
-    posix.sigemptyset(&act.sa_mask)
-    act.sa_flags = {}
-    posix.sigaction(signal, &act, nil)
+    set_signal_handler(signal, auto_cast posix.SIG_IGN)
 }
 
 restore_default_signal :: proc(signal: posix.Signal) {
+    set_signal_handler(signal, auto_cast posix.SIG_DFL)
+}
+
+set_signal_handler :: proc(signal: posix.Signal, handler: proc "c" (_ : posix.Signal )) {
     act: posix.sigaction_t
-    act.sa_handler = auto_cast posix.SIG_DFL
+    act.sa_handler = handler
     posix.sigemptyset(&act.sa_mask)
     act.sa_flags = {}
     posix.sigaction(signal, &act, nil)
