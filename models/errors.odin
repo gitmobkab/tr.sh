@@ -6,5 +6,11 @@ import "core:os"
 // a union of all posible errors trsh may deal with
 Error :: union {
     os.Error,
-    posix.Errno
+    posix.Errno,
+    Redirect_Error,
+}
+
+Redirect_Error :: struct {
+    target: string,
+    errno: posix.Errno
 }
