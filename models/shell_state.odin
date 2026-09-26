@@ -9,7 +9,7 @@ Shell_state :: struct {
     cwd: string,
 
     pgid: posix.pid_t,
-    jobs: map[int]Job_Entry,
+    jobs: Job_Store,
     public_env: map[string]string,
     ignored_signals: [3]posix.Signal,
 
