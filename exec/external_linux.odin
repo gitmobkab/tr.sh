@@ -6,6 +6,7 @@ import "core:strings"
 import "../parser"
 import "../utils"
 import "../signals"
+import "../models"
 
 exec_external :: proc(
     command_path: string,
@@ -15,7 +16,7 @@ exec_external :: proc(
     redirects: []parser.Redirect,
     pgid: posix.pid_t,
     signals_to_restore: []posix.Signal,
-) -> (_pid: posix.pid_t, _errs: []Error) {
+) -> (_pid: posix.pid_t, _errs: []models.Error) {
 
     fds, errs := setup_redirects(redirects)
     defer delete(fds)
@@ -26,9 +27,9 @@ exec_external :: proc(
     switch pid {
         case BAD_PID:
             err := posix.errno()
-            errors: [dynamic]Error
+            errors: [dynamic]models.Error
             append(&errors, err)
-            return -1, utils.snapshot_dynamic_array(Error, errors)
+            return -1, utils.snapshot_dynamic_array(models.Error, errors)
         case 0:
             setup_process_io(command_io)
             dup_redirects(redirects, fds)
@@ -72,8 +73,8 @@ close_command_io :: proc(command_io: Command_IO) {
     posix.close(command_io.stdout_target)
 }
 
-setup_redirects :: proc(redirects: []parser.Redirect) -> (_fds: []posix.FD, _errors: []Error) {
-    errors: [dynamic]Error
+setup_redirects :: proc(redirects: []parser.Redirect) -> (_fds: []posix.FD, _errors: []models.Error) {
+    errors: [dynamic]models.Error
     fds: [dynamic]posix.FD
     defer delete(errors)
     defer delete(fds)
@@ -86,7 +87,7 @@ setup_redirects :: proc(redirects: []parser.Redirect) -> (_fds: []posix.FD, _err
             append(&fds, fd)
         }
     }
-    return utils.snapshot_dynamic_array(posix.FD, fds), utils.snapshot_dynamic_array(Error, errors)
+    return utils.snapshot_dynamic_array(posix.FD, fds), utils.snapshot_dynamic_array(models.Error, errors)
 }
 
 dup_redirects :: proc(redirects: []parser.Redirect, fds: []posix.FD) {
@@ -104,7 +105,7 @@ dup_redirects :: proc(redirects: []parser.Redirect, fds: []posix.FD) {
 }
 
 
-handle_redirect :: proc(redirect: parser.Redirect) -> (_fd: posix.FD, _err: Error) {
+handle_redirect :: proc(redirect: parser.Redirect) -> (_fd: posix.FD, _err: models.Error) {
     c_target := strings.clone_to_cstring(redirect.target)
     fd: posix.FD = SKIP_FILENO
 
@@ -120,9 +121,9 @@ handle_redirect :: proc(redirect: parser.Redirect) -> (_fd: posix.FD, _err: Erro
             }
             fd = posix.open(c_target, access_options, {.IRUSR, .IWUSR, .IRGRP, .IROTH})
         }
-    err: Error
+    err: models.Error
     if fd == SKIP_FILENO {
-        err = Redirect_Error{target = redirect.target, errno = posix.errno()}
+        err = models.Redirect_Error{target = redirect.target, errno = posix.errno()}
     } 
     return fd, err
 }

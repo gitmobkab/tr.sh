@@ -9,8 +9,8 @@ import "../lookup"
 import "../utils"
 
 
-exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shell_state) -> []Error {
-    errs: [dynamic]Error
+exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shell_state) -> []models.Error {
+    errs: [dynamic]models.Error
     defer delete(errs)
     for pipeline in pipelines {
         pipeline_errs := exec_pipeline(pipeline, shell_state)
@@ -18,20 +18,20 @@ exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shel
             append(&errs, ..pipeline_errs)
         }
     }
-    return utils.snapshot_dynamic_array(Error, errs)
+    return utils.snapshot_dynamic_array(models.Error, errs)
 }
 
-exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_state) -> []Error {
+exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_state) -> []models.Error {
     return exec_commands(pipeline.commands, shell_state)
 }
 
 
-exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Shell_state, wait: bool = true) -> []Error {
-    pipes, pipe_errors := init_pipes(len(commands) - 1)
+exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Shell_state, wait: bool = true) -> []models.Error {
+    pipes, pipe_errors := models.init_pipes(len(commands) - 1)
     if len(pipe_errors) > 0 {
         return pipe_errors
     }
-    errs: [dynamic]Error
+    errs: [dynamic]models.Error
     defer delete(errs)
 
     pids, collect_errs := exec_and_collect_pids(commands, pipes, shell_state)
@@ -56,13 +56,13 @@ exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Sh
     }
 
     for pipe, i in pipes {
-        close_pipe(pipe)
+        models.close_pipe(pipe)
     }
     
-    return utils.snapshot_dynamic_array(Error, errs)
+    return utils.snapshot_dynamic_array(models.Error, errs)
 }
 
-set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]Error) {
+set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]models.Error) {
     result := posix.tcsetpgrp(posix.STDIN_FILENO, pgid)
     if result == .FAIL {
         append(errs, posix.errno())
@@ -71,11 +71,11 @@ set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]Error) {
 
 exec_and_collect_pids :: proc(
     commands: []parser.Parsed_Command, 
-    pipes: []Process_Pipe, 
+    pipes: []models.Process_Pipe, 
     shell_state: ^models.Shell_state
-) -> (_pids: []posix.pid_t, _errs: []Error) {
+) -> (_pids: []posix.pid_t, _errs: []models.Error) {
 
-    errs := make([dynamic]Error)
+    errs := make([dynamic]models.Error)
     pids := make([dynamic]posix.pid_t)
     defer delete(errs)
     defer delete(pids)
@@ -102,7 +102,7 @@ exec_and_collect_pids :: proc(
             pgid = pids[0]
         }
     }
-    return utils.snapshot_dynamic_array(posix.pid_t, pids), utils.snapshot_dynamic_array(Error, errs)
+    return utils.snapshot_dynamic_array(posix.pid_t, pids), utils.snapshot_dynamic_array(models.Error, errs)
 }
 
 
@@ -111,14 +111,14 @@ exec_command :: proc(
     shell_state: ^models.Shell_state,
     command_io: Command_IO,
     pgid: posix.pid_t
-) -> (_pid: posix.pid_t, _errs: []Error) {
+) -> (_pid: posix.pid_t, _errs: []models.Error) {
 
     found_command, search_err := lookup.search_command(command.argv[0])
-    errs: [dynamic]Error
+    errs: [dynamic]models.Error
     defer delete(errs)
     if search_err != nil {
         append(&errs, search_err)
-        return BAD_PID, utils.snapshot_dynamic_array(Error, errs)
+        return BAD_PID, utils.snapshot_dynamic_array(models.Error, errs)
     }
 
     cmd_pid: posix.pid_t = BAD_PID
@@ -137,5 +137,5 @@ exec_command :: proc(
                 cmd_pid = pid
             }
     }
-    return cmd_pid, utils.snapshot_dynamic_array(Error, errs)
+    return cmd_pid, utils.snapshot_dynamic_array(models.Error, errs)
 }

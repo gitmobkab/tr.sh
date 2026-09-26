@@ -14,7 +14,7 @@ exec_builtin :: proc(
     current_state: ^models.Shell_state,
     command_io: Command_IO,
     redirects: []parser.Redirect
-) -> []Error {
+) -> []models.Error {
     
     saved_io := save_current_io()
     fds, errs := setup_redirects(redirects)
@@ -24,7 +24,7 @@ exec_builtin :: proc(
     } 
     dup_redirects(redirects, fds)
 
-    exec_errs: [dynamic]Error
+    exec_errs: [dynamic]models.Error
     setup_process_io(command_io)
     dup_redirects(redirects, fds)
 
@@ -36,7 +36,7 @@ exec_builtin :: proc(
     // unnecessary comment 2
     setup_process_io(saved_io)
 
-    return utils.snapshot_dynamic_array(Error, exec_errs)
+    return utils.snapshot_dynamic_array(models.Error, exec_errs)
 }
 
 save_current_io :: proc() -> Command_IO {
