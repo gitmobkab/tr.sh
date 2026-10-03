@@ -4,9 +4,8 @@ import "core:os"
 import "core:fmt"
 
 import "../models"
-import "../registry"
 
-cd :: proc(current_state: ^models.Shell_state, args: []string) -> os.Error {
+cd :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
     if len(args) < 2 {
         fmt.println("Missing operand <path>")
         return nil
@@ -20,9 +19,4 @@ cd :: proc(current_state: ^models.Shell_state, args: []string) -> os.Error {
     }
     current_state.cwd = target
     return nil
-}
-
-@(init)
-register_cd :: proc "contextless"() {
-    registry.registry["cd"] = cd
 }

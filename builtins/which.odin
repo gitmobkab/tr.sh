@@ -5,9 +5,8 @@ import "core:os"
 
 import "../lookup"
 import "../models"
-import "../registry"
 
-which :: proc(current_state: ^models.Shell_state, args: []string) -> os.Error {
+which :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
     if len(args) <= 1 {
         fmt.println("missing operand <cmd>")
         fmt.println("usage: which <cmd>")
@@ -27,9 +26,4 @@ which :: proc(current_state: ^models.Shell_state, args: []string) -> os.Error {
     }
     fmt.printfln("%s: %s",cmd, description)
     return nil
-}
-
-@(init)
-register_which :: proc "contextless"() {
-    registry.registry["which"] = which
 }
