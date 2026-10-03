@@ -13,7 +13,7 @@ which :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
         return nil
     }
     cmd := args[1]
-    found_command, err := lookup.search_command(cmd)
+    found_command, err := lookup.search_command(cmd, current_state, {}) // WIP, for when they'll be a fucking execution context
     if err != nil {
         return err
     }
