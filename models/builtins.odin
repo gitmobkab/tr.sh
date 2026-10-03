@@ -2,4 +2,6 @@ package models
 
 import "core:os"
 
-builtin_proc :: #type proc(current_state: ^Shell_state, args: []string) -> os.Error
+Builtin_Store :: map[string]builtin_proc
+
+builtin_proc :: #type proc(current_state: ^Shell_State, args: []string) -> os.Error
