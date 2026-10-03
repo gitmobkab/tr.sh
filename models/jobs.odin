@@ -24,13 +24,20 @@ Process_Entry :: struct {
     signal: int,
 }
 
+// thinking about merging Job_State and Process_State
+// don't know how to name the enum though, maybe keep it Process_State
 Process_State :: enum u8 {
     Running,
     Stopped,
-    Exited,
+    Done,
     Terminated,
 }
 
+// TODO: too tired
+add_new_job :: proc(pids: []posix.pid_t, jobs: ^Job_Store) {
+    id := get_next_job_id(jobs^)
+
+}
 
 get_next_job_id :: proc(jobs: Job_Store) -> int {
     expected_id := 1
@@ -57,14 +64,14 @@ compute_job_state :: proc(processes: []Process_Entry) -> Job_State {
     if slice.any_of_proc(processes, process_is_stopped) {
         return .Stopped
     }
-    if slice.all_of_proc(processes, process_had_exited) {
+    if slice.all_of_proc(processes, process_is_done) {
         return .Done
     }
     return .Running
 }
 
-process_had_exited :: proc(process: Process_Entry) -> bool {
-    return process_is(.Exited, process)
+process_is_done :: proc(process: Process_Entry) -> bool {
+    return process_is(.Done, process)
 }
 
 process_is_stopped :: proc(process: Process_Entry) -> bool {
