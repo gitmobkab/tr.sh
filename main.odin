@@ -3,7 +3,7 @@ package main
 import "core:sys/posix"
 import "core:fmt"
 
-import _ "builtins" // only for the @(init) side effects
+import "builtins"
 import "models"
 import "signals"
 import "reader"
@@ -17,29 +17,31 @@ self_job_pipe: models.Process_Pipe
 
 main :: proc() {
 
-    shell_state, err := models.init_shell_state()
+    shell, err := models.init_shell()
     if err != nil {
         fmt.eprintln(err)
         return
     }
+    shell.builtins = builtins.BUILTINS
+
     if job_pipe, err := get_job_pipe(); err != nil {
         fmt.eprintln(err)
         return
     } else {
         self_job_pipe = job_pipe
     }
-    signals.ignore_signals(..shell_state.ignored_signals[:])
+    signals.ignore_signals(..shell.signals)
     signals.set_signal_handler(.SIGCHLD, sig_chld_handler)
 
-    for !shell_state.should_exit {
-        if err := shell_iteration(&shell_state); err != nil {
+    for !shell.state.should_exit {
+        if err := shell_iteration(&shell.state); err != nil {
             fmt.println("UNEXPECTED ERR WHILE WORKING:", err)
             break
         }
     }
 }
 
-shell_iteration :: proc(shell_state: ^models.Shell_state) -> models.Error {
+shell_iteration :: proc(shell_state: ^models.Shell_State) -> models.Error {
     fmt.print(PROMPT)
     line, err, sig_chld := reader.self_pipe_read(self_job_pipe)
     if err != nil {
@@ -70,7 +72,7 @@ shell_iteration :: proc(shell_state: ^models.Shell_state) -> models.Error {
     
 }
 
-drain_fd :: proc(fd: posix.FD, shell_state: ^models.Shell_state) {
+drain_fd :: proc(fd: posix.FD, shell_state: ^models.Shell_State) {
     drain_buf: [64]byte
     for {
         len := posix.read(self_job_pipe.reader, raw_data(drain_buf[:]), len(drain_buf))
