@@ -3,28 +3,23 @@ package models
 import "core:os"
 import "core:sys/posix"
 
-import "../utils"
-
-Shell_state :: struct {
-    cwd: string,
-
+Shell_State :: struct {
     pgid: posix.pid_t,
+    
+    cwd: string,
     jobs: Job_Store,
-    public_env: map[string]string,
-    ignored_signals: [3]posix.Signal,
+    env: Env_Store,
+    
+    commands_cache: map[string]string,
 
-    // do not confuse with the public env passed to programs (not used until we support variables lookup)
-    private_env: map[string]string,
     aliases: map[string]string,
     should_exit: bool,
-    exit_code: u8,
+
+    // exit_code: u8,
 }
 
-init_shell_state :: proc() -> (Shell_state, Error) {
-    state := Shell_state{
-        ignored_signals = [3]posix.Signal{.SIGINT, .SIGTTOU, .SIGTTIN},
-        should_exit = false 
-    }
+init_shell_state :: proc() -> (Shell_State, Error) {
+    state := Shell_State{  should_exit = false } // yes, i know this is useless, just like staying explicit
     
     if working_dir, err := os.get_working_directory(context.allocator); err != nil {
         return {}, err
@@ -35,7 +30,7 @@ init_shell_state :: proc() -> (Shell_state, Error) {
     if environ, err := os.environ(context.allocator); err != nil{
         return {}, err
     } else {
-        utils.populate_env(&state.public_env, environ)
+        populate_env(&state.env, environ)
     }
 
     if pgid := posix.getpgid(0); pgid == -1 {
