@@ -27,7 +27,7 @@ reap_jobs :: proc(jobs: ^models.Job_Store) {
 
         switch {
             case posix.WIFEXITED(status):
-                process.state = .Exited
+                process.state = .Done
                 process.exit_code = int(posix.WEXITSTATUS(status))
             case posix.WIFSIGNALED(status):
                 process.state = .Terminated
