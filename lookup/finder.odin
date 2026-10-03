@@ -3,17 +3,11 @@ package lookup
 import "core:os"
 import "core:strings"
 
-import "../models"
-import "../registry"
-
 LOCAL_COMMAND_PREFIX :: "./"
+DEFAULT_ENV_KEY :: "PATH"
+DEFAULT_ENV_SPLITER :: ":"
 
-find_builtin :: proc(name: string) -> (_proc: models.builtin_proc, _found: bool) {
-    builtin_proc, builtin_found := registry.registry[name]
-    return builtin_proc, builtin_found
-}
-
-find_command_path_from_env :: proc(command_name: string, env_key: string = "PATH", split_on: string = ":") -> (_abs_path: string, _err: os.Error) {
+find_command_on_path :: proc(command_name: string) -> (_abs_path: string, _err: os.Error) {
     dirs: []string
     if strings.starts_with(command_name, LOCAL_COMMAND_PREFIX) {
         cwd, err := os.get_working_directory(context.allocator)
@@ -22,27 +16,30 @@ find_command_path_from_env :: proc(command_name: string, env_key: string = "PATH
         }
         dirs = {cwd}
     } else {
-        dirs = get_all_directories_from_env(env_key, split_on)
+        dirs = get_all_directories_from_path()
     }
-    path, err := find_command_path(command_name, dirs)
+    path, err := get_command_absolute_path(command_name, dirs)
     return path, err
 }
 
-find_command_path :: proc(command_name: string, directories: []string) -> (path: string, error: os.Error) {
+get_command_absolute_path :: proc(command_name: string, directories: []string) -> (path: string, error: os.Error) {
     for directory in directories {
         command_path, err := os.join_path({directory, command_name}, context.allocator)
         if err != nil {
             return "", err
         }
-        if os.exists(command_path) {
+        if !os.is_file(command_path) {
+            return "", .Invalid_Path
+        } else {
             return command_path, nil
         }
+
     }
     return "", os.General_Error.Invalid_Command
 }
 
-get_all_directories_from_env :: proc(env_key: string = "PATH", split_on: string = ":") -> []string {
-    normalized_key := strings.to_upper(env_key)
+get_all_directories_from_path :: proc() -> []string {
+    normalized_key := strings.to_upper(DEFAULT_ENV_KEY)
     path := os.get_env(normalized_key, context.allocator)
-    return strings.split(path, split_on)
+    return strings.split(path, DEFAULT_ENV_SPLITER)
 }
