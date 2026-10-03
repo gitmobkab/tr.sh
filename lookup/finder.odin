@@ -7,13 +7,9 @@ LOCAL_COMMAND_PREFIX :: "./"
 DEFAULT_ENV_KEY :: "PATH"
 DEFAULT_ENV_SPLITER :: ":"
 
-find_command_on_path :: proc(command_name: string) -> (_abs_path: string, _err: os.Error) {
+find_command_on_path :: proc(command_name: string, cwd: string) -> (_abs_path: string, _err: os.Error) {
     dirs: []string
     if strings.starts_with(command_name, LOCAL_COMMAND_PREFIX) {
-        cwd, err := os.get_working_directory(context.allocator)
-        if err != nil {
-            return "", err
-        }
         dirs = {cwd}
     } else {
         dirs = get_all_directories_from_path()

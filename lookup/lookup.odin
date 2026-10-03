@@ -13,7 +13,7 @@ search_command :: proc(command_name: string, state: ^models.Shell_State, builtin
         return Found_Command{kind = .External, path = cached_path}, nil
     }
 
-    abs_path, err := find_command_on_path(command_name)
+    abs_path, err := find_command_on_path(command_name, state.cwd)
     if err != nil {
         return {}, err
     } 
