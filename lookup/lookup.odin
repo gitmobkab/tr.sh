@@ -7,7 +7,7 @@ import "../models"
 search_command :: proc(
     command_name: string,
     cwd: string,
-    cache: map[string]string,
+    cache: ^map[string]string,
     builtins_store: models.Builtin_Store
 ) -> (_command: Found_Command, _err: os.Error) {
     if builtin_fn, found := builtins_store[command_name]; found {
@@ -22,5 +22,6 @@ search_command :: proc(
     if err != nil {
         return {}, err
     } 
+    cache[command_name] = abs_path
     return Found_Command{kind = .External, path = abs_path}, nil
 }
