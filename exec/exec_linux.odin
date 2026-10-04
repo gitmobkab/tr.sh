@@ -29,6 +29,24 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
     errs: [dynamic]models.Error
     defer delete(errs)
 
+    if len(pipeline.commands) == 1 && len(pipeline.commands[0].argv) >= 1 {
+        pid, cmd_errs := handle_single_command(pipeline.commands[0], shell)
+        if len(errs) >= 1 {
+            return cmd_errs
+        }
+        if pid != BAD_PID {
+            if err := set_foreground_pgrp(pid); err != nil {
+                append(&errs, err)
+            }
+            stat_loc: i32
+            posix.waitpid(pid, &stat_loc, {.UNTRACED})
+            if err := set_foreground_pgrp(shell.state.pgid); err != nil {
+                append(&errs, err)
+            }
+        }
+        return utils.snapshot_dynamic_array(models.Error, errs)
+    }
+
     pids, collect_errs := exec_and_collect_pids(pipeline.commands, pipes, shell)
     defer delete(pids)
     defer delete(collect_errs)
@@ -38,10 +56,9 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
 
     pids_not_empty := len(pids) >= 1
     if pids_not_empty {
-        set_foreground_pgrp(pids[0], &errs)
-    }
-    defer if pids_not_empty {
-        set_foreground_pgrp(shell.state.pgid, &errs)
+        if err := set_foreground_pgrp(pids[0]); err != nil {
+            append(&errs, err)
+        }
     }
     
     // don't intend on using it right now
@@ -53,15 +70,22 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
     for pipe, i in pipes {
         models.close_pipe(pipe)
     }
-    
+
+    if pids_not_empty {
+        if err := set_foreground_pgrp(shell.state.pgid); err != nil {
+            append(&errs, err)
+        }
+    }
+
     return utils.snapshot_dynamic_array(models.Error, errs)
 }
 
-set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]models.Error) {
+set_foreground_pgrp :: proc(pgid: posix.pid_t) -> models.Error {
     result := posix.tcsetpgrp(posix.STDIN_FILENO, pgid)
     if result == .FAIL {
-        append(errs, posix.errno())
+        return posix.errno()
     }
+    return nil
 }
 
 exec_and_collect_pids :: proc(
@@ -101,6 +125,53 @@ exec_and_collect_pids :: proc(
 }
 
 
+handle_single_command :: proc(
+    command: parser.Parsed_Command,
+    shell: ^models.Shell,
+) -> (_pid: posix.pid_t, _errs: []models.Error) {
+    found_command, search_err := lookup.search_command(command.argv[0], shell.state.cwd,
+                                                    &shell.state.commands_cache, shell.builtins)
+    errs: [dynamic]models.Error
+    defer delete(errs)
+    if search_err != nil {
+        append(&errs, search_err)
+        return BAD_PID, utils.snapshot_dynamic_array(models.Error, errs)
+    }
+
+    exec_context := Exec_Context{
+        path = found_command.path,
+        argv = command.argv,
+        builtin_proc = found_command.builtin_proc,
+        shell = shell
+    }
+
+    switch found_command.kind {
+        case .Builtin:
+            fds, redirect_errs := setup_redirects(command.redirects)
+            if len(redirect_errs) != 0 {
+                return BAD_PID, redirect_errs
+            }
+            dup_redirects(command.redirects, fds)
+            builtin_command_executer(exec_context)
+        case .External:
+            pid, exec_errs := fork_and_exec(
+                external_command_executer,
+                exec_context,
+                default_process_io(),
+                command.redirects,
+                BAD_PID,
+                shell.signals
+            )
+            if len(exec_errs) >= 1 {
+                return BAD_PID, exec_errs
+            }
+            return pid, {}
+    }
+
+    return BAD_PID, {}
+}
+
+
 exec_command :: proc(
     command: parser.Parsed_Command,
     shell: ^models.Shell,
@@ -126,7 +197,6 @@ exec_command :: proc(
     exec_context := Exec_Context{
         path = found_command.path,
         argv = command.argv,
-        environ = models.env_store_to_environ(shell.state.env),
         builtin_proc = found_command.builtin_proc,
         shell = shell
     }
