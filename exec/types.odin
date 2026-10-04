@@ -18,7 +18,6 @@ default_process_io :: proc() -> Process_IO {
 Exec_Context :: struct {
     path: string,
     argv: []string,
-    environ: []string,
     builtin_proc: models.builtin_proc,
     shell: ^models.Shell,
 }

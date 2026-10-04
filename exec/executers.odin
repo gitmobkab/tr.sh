@@ -20,7 +20,8 @@ builtin_command_executer :: proc(ctx: Exec_Context) {
 external_command_executer :: proc(ctx: Exec_Context) {
     c_path := strings.clone_to_cstring(ctx.path)
     c_argv := utils.strings_to_cstrings(ctx.argv)
-    c_envp := utils.strings_to_cstrings(ctx.environ)
+    environ := models.env_store_to_environ(ctx.shell.state.env)
+    c_envp := utils.strings_to_cstrings(environ)
     posix.execve(c_path, c_argv, c_envp)
 
     fmt.eprintfln("trsh: %v: %v", posix.strerror(posix.errno()), ctx.path)
