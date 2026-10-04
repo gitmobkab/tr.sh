@@ -28,7 +28,7 @@ fork_and_exec :: proc(
             err := posix.errno()
             errors: [dynamic]models.Error
             append(&errors, err)
-            return -1, utils.snapshot_dynamic_array(models.Error, errors)
+            return BAD_PID, utils.snapshot_dynamic_array(models.Error, errors)
         case 0:
             setup_process_io(IO)
             dup_redirects(redirects, fds)
