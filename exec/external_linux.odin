@@ -12,7 +12,7 @@ exec_external :: proc(
     command_path: string,
     argv: []string,
     envp: []string,
-    command_io: Command_IO,
+    IO: Process_IO,
     redirects: []parser.Redirect,
     pgid: posix.pid_t,
     signals_to_restore: []posix.Signal,
@@ -31,7 +31,7 @@ exec_external :: proc(
             append(&errors, err)
             return -1, utils.snapshot_dynamic_array(models.Error, errors)
         case 0:
-            setup_process_io(command_io)
+            setup_process_io(IO)
             dup_redirects(redirects, fds)
             signals.restore_default_signals(..signals_to_restore)
             set_pgid(pid, pgid)
@@ -43,7 +43,7 @@ exec_external :: proc(
             
             posix.exit(1) // shouldn't happen, just a safe guard
         case :
-            close_command_io(command_io)
+            close_command_io(IO)
             set_pgid(pid, pgid)
     }
     return pid, errs
@@ -57,20 +57,20 @@ set_pgid :: proc(pid, pgid: posix.pid_t) {
     }
 }
 
-setup_process_io :: proc(command_io: Command_IO) {
-    if command_io.stdin_source != SKIP_FILENO {
-        posix.dup2(command_io.stdin_source, posix.STDIN_FILENO)
+setup_process_io :: proc(IO: Process_IO) {
+    if IO.stdin_source != SKIP_FILENO {
+        posix.dup2(IO.stdin_source, posix.STDIN_FILENO)
     }
-    if command_io.stdout_target != SKIP_FILENO {
-        posix.dup2(command_io.stdout_target, posix.STDOUT_FILENO)
+    if IO.stdout_target != SKIP_FILENO {
+        posix.dup2(IO.stdout_target, posix.STDOUT_FILENO)
     }
 
-    close_command_io(command_io)
+    close_command_io(IO)
 }
 
-close_command_io :: proc(command_io: Command_IO) {
-    posix.close(command_io.stdin_source)
-    posix.close(command_io.stdout_target)
+close_command_io :: proc(IO: Process_IO) {
+    posix.close(IO.stdin_source)
+    posix.close(IO.stdout_target)
 }
 
 setup_redirects :: proc(redirects: []parser.Redirect) -> (_fds: []posix.FD, _errors: []models.Error) {

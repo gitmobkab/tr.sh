@@ -9,7 +9,7 @@ import "../lookup"
 import "../utils"
 
 
-exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shell_state) -> []models.Error {
+exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shell_State) -> []models.Error {
     errs: [dynamic]models.Error
     defer delete(errs)
     for pipeline in pipelines {
@@ -21,20 +21,15 @@ exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shel
     return utils.snapshot_dynamic_array(models.Error, errs)
 }
 
-exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_state) -> []models.Error {
-    return exec_commands(pipeline.commands, shell_state)
-}
-
-
-exec_commands :: proc(commands: []parser.Parsed_Command, shell_state: ^models.Shell_state, wait: bool = true) -> []models.Error {
-    pipes, pipe_errors := models.init_pipes(len(commands) - 1)
+exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_State) -> []models.Error {
+    pipes, pipe_errors := models.init_pipes(len(pipeline.commands) - 1)
     if len(pipe_errors) > 0 {
         return pipe_errors
     }
     errs: [dynamic]models.Error
     defer delete(errs)
 
-    pids, collect_errs := exec_and_collect_pids(commands, pipes, shell_state)
+    pids, collect_errs := exec_and_collect_pids(pipeline.commands, pipes, shell_state)
     defer delete(pids)
     defer delete(collect_errs)
     if len(collect_errs) > 0 {
@@ -72,7 +67,7 @@ set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]models.Error) {
 exec_and_collect_pids :: proc(
     commands: []parser.Parsed_Command, 
     pipes: []models.Process_Pipe, 
-    shell_state: ^models.Shell_state
+    shell_state: ^models.Shell_State
 ) -> (_pids: []posix.pid_t, _errs: []models.Error) {
 
     errs := make([dynamic]models.Error)
@@ -82,16 +77,16 @@ exec_and_collect_pids :: proc(
 
     pgid: posix.pid_t = BAD_PID
     for command, i in commands {
-        command_io := default_command_io()
+       IO := default_process_io()
 
         if i > 0 {
-            command_io.stdin_source = pipes[i - 1].reader
+           IO.stdin_source = pipes[i - 1].reader
         }
         if i < len(commands) - 1 {
-            command_io.stdout_target = pipes[i].writer
+            IO.stdout_target = pipes[i].writer
         }
 
-        pid, exec_errs := exec_command(command, shell_state, command_io, pgid)
+        pid, exec_errs := exec_command(command, shell_state, IO, pgid)
         if len(exec_errs) > 0 || pid == BAD_PID {
             append(&errs, ..exec_errs)
         } else {
@@ -108,8 +103,8 @@ exec_and_collect_pids :: proc(
 
 exec_command :: proc(
     command: parser.Parsed_Command,
-    shell_state: ^models.Shell_state,
-    command_io: Command_IO,
+    shell_state: ^models.Shell_State,
+    IO: Process_IO,
     pgid: posix.pid_t
 ) -> (_pid: posix.pid_t, _errs: []models.Error) {
 
@@ -124,13 +119,13 @@ exec_command :: proc(
     cmd_pid: posix.pid_t = BAD_PID
     switch found_command.kind{
         case .Builtin:
-            err := exec_builtin(found_command.builtin_proc, command.argv, shell_state, command_io, command.redirects)
+            err := exec_builtin(found_command.builtin_proc, command.argv, shell_state,Process_IO, command.redirects)
             if len(err) > 0 {
                 append(&errs, ..err)
             }
         case .External:
-            environ := utils.env_store_to_environ(shell_state.public_env)
-            pid, exec_errs := exec_external(found_command.path, command.argv, environ, command_io, command.redirects, pgid, shell_state.ignored_signals[:])
+            environ := models.env_store_to_environ(shell_state.env)
+            pid, exec_errs := exec_external(found_command.path, command.argv, environ, IO, command.redirects, pgid, shell_state.ignored_signals[:])
             if len(exec_errs) > 0 || pid == BAD_PID {
                 append(&errs, ..exec_errs)
             } else {

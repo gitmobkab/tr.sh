@@ -2,14 +2,26 @@ package exec
 
 import "core:sys/posix"
 
+import "../parser"
+import "../models"
 
-Command_IO :: struct {
+Process_IO :: struct {
     stdin_source: posix.FD,
     stdout_target: posix.FD,
 }
 
-default_command_io :: proc() -> Command_IO {
-    default_io := Command_IO{SKIP_FILENO, SKIP_FILENO}
+default_process_io :: proc() -> Process_IO {
+    default_io := Process_IO{SKIP_FILENO, SKIP_FILENO}
     return default_io
 }
 
+// centralized payload for builtin and external command execution (WIP)
+Exec_Context :: struct {
+    path: string,
+    argv: []string,
+    environ: []string,
+    builtin_proc: models.builtin_proc,
+    shell: ^models.Shell,
+}
+
+Command_Executer :: #type proc(ctx: Exec_Context)
