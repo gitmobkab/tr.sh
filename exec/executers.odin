@@ -23,5 +23,5 @@ external_command_executer :: proc(ctx: Exec_Context) {
     c_envp := utils.strings_to_cstrings(ctx.environ)
     posix.execve(c_path, c_argv, c_envp)
 
-    fmt.panicf("could not execute: %v", posix.strerror(posix.errno()))
+    fmt.eprintfln("trsh: %v: %v", posix.strerror(posix.errno()), ctx.path)
 }
