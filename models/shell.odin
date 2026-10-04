@@ -3,7 +3,7 @@ package models
 import "core:sys/posix"
 
 SIGNALS := []posix.Signal{
-    .SIGQUIT,
+    .SIGINT,
     .SIGTTIN,
     .SIGTTOU
 }
