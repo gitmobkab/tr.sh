@@ -8,10 +8,9 @@ import "../utils"
 import "../signals"
 import "../models"
 
-exec_external :: proc(
-    command_path: string,
-    argv: []string,
-    envp: []string,
+fork_and_exec :: proc(
+    executer: Command_Executer,
+    exec_ctx: Exec_Context,
     IO: Process_IO,
     redirects: []parser.Redirect,
     pgid: posix.pid_t,
@@ -36,10 +35,7 @@ exec_external :: proc(
             signals.restore_default_signals(..signals_to_restore)
             set_pgid(pid, pgid)
 
-            path := strings.clone_to_cstring(command_path)
-            c_argv := utils.strings_to_cstrings(argv)
-            c_envp := utils.strings_to_cstrings(envp)
-            posix.execve(path, c_argv, c_envp)
+            executer(exec_ctx)
             
             posix.exit(1) // shouldn't happen, just a safe guard
         case :
