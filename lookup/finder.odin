@@ -24,12 +24,9 @@ get_command_absolute_path :: proc(command_name: string, directories: []string) -
         if err != nil {
             return "", err
         }
-        if !os.is_file(command_path) {
-            return "", .Invalid_Path
-        } else {
+        if os.exists(command_path) {
             return command_path, nil
         }
-
     }
     return "", os.General_Error.Invalid_Command
 }
