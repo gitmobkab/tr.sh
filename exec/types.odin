@@ -2,7 +2,6 @@ package exec
 
 import "core:sys/posix"
 
-import "../parser"
 import "../models"
 
 Process_IO :: struct {
