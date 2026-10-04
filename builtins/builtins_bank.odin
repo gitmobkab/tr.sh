@@ -9,6 +9,7 @@ BUILTINS := models.Builtin_Store{
     "cd" = cd,
     "exit" = exit,
     "fg" = fg,
+    "hash" = hash,
     "jobs" = jobs,
     "kill" = kill,
     "pwd" = pwd,
