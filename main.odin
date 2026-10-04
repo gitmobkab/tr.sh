@@ -34,20 +34,20 @@ main :: proc() {
     signals.set_signal_handler(.SIGCHLD, sig_chld_handler)
 
     for !shell.state.should_exit {
-        if err := shell_iteration(&shell.state); err != nil {
+        if err := shell_iteration(&shell); err != nil {
             fmt.println("UNEXPECTED ERR WHILE WORKING:", err)
             break
         }
     }
 }
 
-shell_iteration :: proc(shell_state: ^models.Shell_State) -> models.Error {
+shell_iteration :: proc(shell: ^models.Shell) -> models.Error {
     fmt.print(PROMPT)
     line, err, sig_chld := reader.self_pipe_read(self_job_pipe)
     if err != nil {
         return err
     } else if sig_chld {
-        reap_jobs(&shell_state.jobs)
+        reap_jobs(&shell.state.jobs)
         return nil
     }
 
@@ -60,14 +60,14 @@ shell_iteration :: proc(shell_state: ^models.Shell_State) -> models.Error {
         fmt.println("trsh:", parser.get_error_msg(parse_error))
         return nil
     }
-    errs := exec.exec_pipepilines(pipelines, shell_state)
+    errs := exec.exec_pipepilines(pipelines, shell)
     defer delete(errs)
 
     if len(errs) > 0 {
         fmt.println(errs)
         return nil
     }
-    drain_fd(self_job_pipe.reader, shell_state)
+    drain_fd(self_job_pipe.reader, &shell.state)
     return nil
     
 }
