@@ -114,7 +114,7 @@ exec_command :: proc(
     }
 
     found_command, search_err := lookup.search_command(command.argv[0], shell.state.cwd,
-                                                    shell.state.commands_cache, shell.builtins)
+                                                    &shell.state.commands_cache, shell.builtins)
 
     errs: [dynamic]models.Error
     defer delete(errs)
