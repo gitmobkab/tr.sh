@@ -9,11 +9,11 @@ import "../lookup"
 import "../utils"
 
 
-exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shell_State) -> []models.Error {
+exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell: ^models.Shell) -> []models.Error {
     errs: [dynamic]models.Error
     defer delete(errs)
     for pipeline in pipelines {
-        pipeline_errs := exec_pipeline(pipeline, shell_state)
+        pipeline_errs := exec_pipeline(pipeline, shell)
         if len(pipeline_errs) > 0 {
             append(&errs, ..pipeline_errs)
         }
@@ -21,7 +21,7 @@ exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell_state: ^models.Shel
     return utils.snapshot_dynamic_array(models.Error, errs)
 }
 
-exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_State) -> []models.Error {
+exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []models.Error {
     pipes, pipe_errors := models.init_pipes(len(pipeline.commands) - 1)
     if len(pipe_errors) > 0 {
         return pipe_errors
@@ -29,7 +29,7 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_Stat
     errs: [dynamic]models.Error
     defer delete(errs)
 
-    pids, collect_errs := exec_and_collect_pids(pipeline.commands, pipes, shell_state)
+    pids, collect_errs := exec_and_collect_pids(pipeline.commands, pipes, shell)
     defer delete(pids)
     defer delete(collect_errs)
     if len(collect_errs) > 0 {
@@ -41,7 +41,7 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell_state: ^models.Shell_Stat
         set_foreground_pgrp(pids[0], &errs)
     }
     defer if pids_not_empty {
-        set_foreground_pgrp(shell_state.pgid, &errs)
+        set_foreground_pgrp(shell.state.pgid, &errs)
     }
     
     // don't intend on using it right now
@@ -67,7 +67,7 @@ set_foreground_pgrp :: proc(pgid: posix.pid_t, errs: ^[dynamic]models.Error) {
 exec_and_collect_pids :: proc(
     commands: []parser.Parsed_Command, 
     pipes: []models.Process_Pipe, 
-    shell_state: ^models.Shell_State
+    shell: ^models.Shell
 ) -> (_pids: []posix.pid_t, _errs: []models.Error) {
 
     errs := make([dynamic]models.Error)
@@ -86,7 +86,7 @@ exec_and_collect_pids :: proc(
             IO.stdout_target = pipes[i].writer
         }
 
-        pid, exec_errs := exec_command(command, shell_state, IO, pgid)
+        pid, exec_errs := exec_command(command, shell, IO, pgid)
         if len(exec_errs) > 0 || pid == BAD_PID {
             append(&errs, ..exec_errs)
         } else {
@@ -103,12 +103,19 @@ exec_and_collect_pids :: proc(
 
 exec_command :: proc(
     command: parser.Parsed_Command,
-    shell_state: ^models.Shell_State,
+    shell: ^models.Shell,
     IO: Process_IO,
     pgid: posix.pid_t
 ) -> (_pid: posix.pid_t, _errs: []models.Error) {
 
-    found_command, search_err := lookup.search_command(command.argv[0])
+    if len(command.argv) == 0 {
+        pid, errs := fork_and_exec(no_op_executer, {}, IO, command.redirects, pgid, shell.signals)
+        return pid, errs
+    }
+
+    found_command, search_err := lookup.search_command(command.argv[0], shell.state.cwd,
+                                                    shell.state.commands_cache, shell.builtins)
+
     errs: [dynamic]models.Error
     defer delete(errs)
     if search_err != nil {
@@ -116,21 +123,20 @@ exec_command :: proc(
         return BAD_PID, utils.snapshot_dynamic_array(models.Error, errs)
     }
 
-    cmd_pid: posix.pid_t = BAD_PID
-    switch found_command.kind{
-        case .Builtin:
-            err := exec_builtin(found_command.builtin_proc, command.argv, shell_state,Process_IO, command.redirects)
-            if len(err) > 0 {
-                append(&errs, ..err)
-            }
-        case .External:
-            environ := models.env_store_to_environ(shell_state.env)
-            pid, exec_errs := exec_external(found_command.path, command.argv, environ, IO, command.redirects, pgid, shell_state.ignored_signals[:])
-            if len(exec_errs) > 0 || pid == BAD_PID {
-                append(&errs, ..exec_errs)
-            } else {
-                cmd_pid = pid
-            }
+    exec_context := Exec_Context{
+        path = found_command.path,
+        argv = command.argv,
+        environ = models.env_store_to_environ(shell.state.env),
+        builtin_proc = found_command.builtin_proc,
+        shell = shell
     }
+    executer: Command_Executer
+    switch found_command.kind {
+        case .Builtin:
+            executer = builtin_command_executer
+        case .External:
+            executer = external_command_executer
+    }
+    cmd_pid, fork_errs := fork_and_exec(executer, exec_context, IO, command.redirects, pgid, shell.signals)
     return cmd_pid, utils.snapshot_dynamic_array(models.Error, errs)
 }
