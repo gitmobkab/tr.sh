@@ -1,10 +1,11 @@
 package builtins
 
+import "core:os"
 import "core:fmt"
 
 import "../models"
 
-hash :: proc(current_state: ^models.Shell_State, _: []string) -> models.Error {
+hash :: proc(current_state: ^models.Shell_State, _: []string) -> os.Error {
     if len(current_state.commands_cache) == 0 {
         fmt.println("No cached commands...")
         return nil

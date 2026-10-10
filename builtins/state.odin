@@ -4,6 +4,7 @@ import "core:strings"
 import "base:runtime"
 import "core:reflect"
 import "core:fmt"
+import "core:os"
 
 import "../models"
 
@@ -12,7 +13,7 @@ NIL_REPR :: "<nil>"
 
 LEAF_TYPES_INFO :: []runtime.Type_Info
 
-state :: proc(current_state: ^models.Shell_State, _: []string) -> models.Error {
+state :: proc(current_state: ^models.Shell_State, _: []string) -> os.Error {
 	stdout_builder := strings.builder_make()
 	defer strings.builder_destroy(&stdout_builder)
 

@@ -5,7 +5,7 @@ import "core:fmt"
 
 import "../models"
 
-cd :: proc(current_state: ^models.Shell_State, args: []string) -> models.Error {
+cd :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
     if len(args) < 2 {
         fmt.println("Missing operand <path>")
         return nil

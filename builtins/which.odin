@@ -6,7 +6,7 @@ import "core:os"
 import "../lookup"
 import "../models"
 
-which :: proc(current_state: ^models.Shell_State, args: []string) -> models.Error {
+which :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
     if len(args) <= 1 {
         fmt.println("missing operand <cmd>")
         fmt.println("usage: which <cmd>")
