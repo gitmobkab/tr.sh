@@ -2,7 +2,6 @@ package exec
 
 import "core:sys/posix"
 import "core:os"
-import "core:fmt"
 
 import "../parser"
 import "../models"
@@ -132,9 +131,10 @@ handle_single_command :: proc(
 ) -> (_pid: posix.pid_t, _errs: []models.Error) {
     found_command, search_err := lookup.search_command(command.argv[0], shell.state.cwd,
                                                     &shell.state.commands_cache, shell.builtins)
-    errs: [dynamic]models.Error
-    defer delete(errs)
+                                                    
     if search_err != nil {
+        errs: [dynamic]models.Error
+        defer delete(errs)
         append(&errs, search_err)
         return BAD_PID, utils.snapshot_dynamic_array(models.Error, errs)
     }
