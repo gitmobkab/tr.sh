@@ -1,11 +1,10 @@
 package builtins
 
 import "core:fmt"
-import "core:os"
 
 import "../models"
 
-alias :: proc(current_state: ^models.Shell_State, _: []string) -> os.Error {
+alias :: proc(current_state: ^models.Shell_State, _: []string) -> models.Error {
     if len(current_state.aliases) == 0 {
         fmt.println("No alias defined :)")
         return nil
