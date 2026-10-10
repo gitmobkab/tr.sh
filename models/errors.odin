@@ -8,6 +8,11 @@ Error :: union {
     os.Error,
     posix.Errno,
     Redirect_Error,
+    Command_Not_Found,
+}
+
+Command_Not_Found :: struct {
+    command_name: string
 }
 
 Redirect_Error :: struct {
