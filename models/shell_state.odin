@@ -19,7 +19,7 @@ Shell_State :: struct {
 }
 
 init_shell_state :: proc() -> (Shell_State, Error) {
-    state := Shell_State{  should_exit = false } // yes, i know this is useless, just like staying explicit
+    state := Shell_State{ should_exit = false } // yes, i know this is useless, just like staying explicit
     
     if working_dir, err := os.get_working_directory(context.allocator); err != nil {
         return {}, err
