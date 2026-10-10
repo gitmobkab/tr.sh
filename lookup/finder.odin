@@ -3,11 +3,13 @@ package lookup
 import "core:os"
 import "core:strings"
 
+import "../models"
+
 LOCAL_COMMAND_PREFIX :: "./"
 DEFAULT_ENV_KEY :: "PATH"
 DEFAULT_ENV_SPLITER :: ":"
 
-find_command_on_path :: proc(command_name: string, cwd: string) -> (_abs_path: string, _err: os.Error) {
+find_command_on_path :: proc(command_name: string, cwd: string) -> (_abs_path: string, _err: models.Error) {
     dirs: []string
     if strings.starts_with(command_name, LOCAL_COMMAND_PREFIX) {
         dirs = {cwd}
@@ -18,17 +20,17 @@ find_command_on_path :: proc(command_name: string, cwd: string) -> (_abs_path: s
     return path, err
 }
 
-get_command_absolute_path :: proc(command_name: string, directories: []string) -> (path: string, error: os.Error) {
+get_command_absolute_path :: proc(command_name: string, directories: []string) -> (_path: string, _error: models.Error) {
     for directory in directories {
         command_path, err := os.join_path({directory, command_name}, context.allocator)
         if err != nil {
-            return "", err
+            return "", cast(os.Error)err
         }
         if os.exists(command_path) {
             return command_path, nil
         }
     }
-    return "", os.General_Error.Invalid_Command
+    return "", models.Command_Not_Found{command_name}
 }
 
 get_all_directories_from_path :: proc() -> []string {
