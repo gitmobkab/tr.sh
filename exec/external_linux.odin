@@ -20,7 +20,7 @@ fork_and_exec :: proc(
     fds, errs := setup_redirects(redirects)
     defer delete(fds)
     if len(errs) > 0 {
-        return -1, errs
+        return BAD_PID, errs
     } 
     pid := posix.fork()
     switch pid {
