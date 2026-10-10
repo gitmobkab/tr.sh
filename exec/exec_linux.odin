@@ -2,6 +2,7 @@ package exec
 
 import "core:sys/posix"
 import "core:os"
+import "core:fmt"
 
 import "../parser"
 import "../models"
@@ -31,7 +32,7 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
 
     if len(pipeline.commands) == 1 && len(pipeline.commands[0].argv) >= 1 {
         pid, cmd_errs := handle_single_command(pipeline.commands[0], shell)
-        if len(errs) >= 1 {
+        if len(cmd_errs) >= 1 {
             return cmd_errs
         }
         if pid != BAD_PID {
