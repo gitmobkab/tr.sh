@@ -167,7 +167,7 @@ handle_single_command :: proc(
             dup_redirects(command.redirects, fds)
             builtin_command_executer(exec_context)
         case .External:
-            pid, exec_errs := fork_and_exec(
+            pid, exec_errs := exec_as_child_process(
                 external_command_executer,
                 exec_context,
                 default_process_io(),
@@ -193,7 +193,7 @@ exec_command :: proc(
 ) -> (_pid: posix.pid_t, _errs: []models.Error) {
 
     if len(command.argv) == 0 {
-        pid, errs := fork_and_exec(no_op_executer, {}, IO, command.redirects, pgid, shell.signals)
+        pid, errs := exec_as_child_process(no_op_executer, {}, IO, command.redirects, pgid, shell.signals)
         return pid, errs
     }
 
@@ -220,6 +220,6 @@ exec_command :: proc(
         case .External:
             executer = external_command_executer
     }
-    cmd_pid, fork_errs := fork_and_exec(executer, exec_context, IO, command.redirects, pgid, shell.signals)
+    cmd_pid, fork_errs := exec_as_child_process(executer, exec_context, IO, command.redirects, pgid, shell.signals)
     return cmd_pid, utils.snapshot_dynamic_array(models.Error, errs)
 }

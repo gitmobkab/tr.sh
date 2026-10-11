@@ -8,7 +8,7 @@ import "../utils"
 import "../signals"
 import "../models"
 
-fork_and_exec :: proc(
+exec_as_child_process :: proc(
     executer: Command_Executer,
     exec_ctx: Exec_Context,
     IO: Process_IO,
