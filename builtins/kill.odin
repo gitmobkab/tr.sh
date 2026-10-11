@@ -6,7 +6,7 @@ import "core:os"
 
 import "../models"
 
-kill :: proc(current_state: ^models.Shell_State, args: []string) -> os.Error {
+kill :: proc(current_state: ^models.Shell_State, args: []string) -> models.Error {
     if len(args) <= 1 {
         fmt.println("usage: kill <pid>")
         return nil
