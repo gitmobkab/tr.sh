@@ -37,7 +37,7 @@ exec_as_child_process :: proc(
 
             exit_code := executer(exec_ctx)
             
-            posix.exit(i32(exit_code)) // shouldn't happen, just a safe guard
+            posix.exit(i32(exit_code))
         case :
             close_process_io(IO)
             set_pgid(pid, pgid)
