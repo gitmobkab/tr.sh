@@ -14,7 +14,6 @@ default_process_io :: proc() -> Process_IO {
     return default_io
 }
 
-// centralized payload for builtin and external command execution (WIP)
 Exec_Context :: struct {
     path: string,
     argv: []string,
