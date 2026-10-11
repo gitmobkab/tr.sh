@@ -148,10 +148,22 @@ handle_single_command :: proc(
 
     switch found_command.kind {
         case .Builtin:
+            backup_io := Process_IO{
+                stdin_source = posix.dup(posix.STDIN_FILENO),
+                stdout_target = posix.dup(posix.STDOUT_FILENO),
+            }
+
+            defer {
+                posix.dup2(backup_io.stdin_source, posix.STDIN_FILENO)
+                posix.dup2(backup_io.stdout_target, posix.STDOUT_FILENO)
+                close_command_io(backup_io)
+            }
+            
             fds, redirect_errs := setup_redirects(command.redirects)
             if len(redirect_errs) != 0 {
                 return BAD_PID, redirect_errs
             }
+
             dup_redirects(command.redirects, fds)
             builtin_command_executer(exec_context)
         case .External:
