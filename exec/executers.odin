@@ -7,9 +7,9 @@ import "core:fmt"
 import "../models"
 import "../utils"
 
-no_op_executer :: proc(ctx: Exec_Context) -> int { return 0 }
+no_op_executer :: proc(ctx: Exec_Context) -> u8 { return 0 }
 
-builtin_command_executer :: proc(ctx: Exec_Context) -> int {
+builtin_command_executer :: proc(ctx: Exec_Context) -> u8 {
     err := ctx.builtin_proc(&ctx.shell.state, ctx.argv)
     if err != nil {
         fmt.eprintln("trsh:", err)
@@ -18,7 +18,7 @@ builtin_command_executer :: proc(ctx: Exec_Context) -> int {
     return 0
 }
 
-external_command_executer :: proc(ctx: Exec_Context) -> int {
+external_command_executer :: proc(ctx: Exec_Context) -> u8 {
     c_path := strings.clone_to_cstring(ctx.path)
     c_argv := utils.strings_to_cstrings(ctx.argv)
     environ := models.env_store_to_environ(ctx.shell.state.env)
