@@ -35,9 +35,9 @@ fork_and_exec :: proc(
             signals.restore_default_signals(..signals_to_restore)
             set_pgid(pid, pgid)
 
-            executer(exec_ctx)
+            exit_code := executer(exec_ctx)
             
-            posix.exit(1) // shouldn't happen, just a safe guard
+            posix.exit(i32(exit_code)) // shouldn't happen, just a safe guard
         case :
             close_command_io(IO)
             set_pgid(pid, pgid)

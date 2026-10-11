@@ -22,4 +22,4 @@ Exec_Context :: struct {
     shell: ^models.Shell,
 }
 
-Command_Executer :: #type proc(ctx: Exec_Context)
+Command_Executer :: #type proc(ctx: Exec_Context) -> (_exit_code: int)
