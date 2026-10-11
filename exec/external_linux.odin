@@ -39,7 +39,7 @@ fork_and_exec :: proc(
             
             posix.exit(i32(exit_code)) // shouldn't happen, just a safe guard
         case :
-            close_command_io(IO)
+            close_process_io(IO)
             set_pgid(pid, pgid)
     }
     return pid, errs
@@ -61,10 +61,10 @@ setup_process_io :: proc(IO: Process_IO) {
         posix.dup2(IO.stdout_target, posix.STDOUT_FILENO)
     }
 
-    close_command_io(IO)
+    close_process_io(IO)
 }
 
-close_command_io :: proc(IO: Process_IO) {
+close_process_io :: proc(IO: Process_IO) {
     posix.close(IO.stdin_source)
     posix.close(IO.stdout_target)
 }

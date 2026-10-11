@@ -156,9 +156,9 @@ handle_single_command :: proc(
             defer {
                 posix.dup2(backup_io.stdin_source, posix.STDIN_FILENO)
                 posix.dup2(backup_io.stdout_target, posix.STDOUT_FILENO)
-                close_command_io(backup_io)
+                close_process_io(backup_io)
             }
-            
+
             fds, redirect_errs := setup_redirects(command.redirects)
             if len(redirect_errs) != 0 {
                 return BAD_PID, redirect_errs
