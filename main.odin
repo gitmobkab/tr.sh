@@ -10,6 +10,7 @@ import "reader"
 import "parser"
 import "lexer"
 import "exec"
+import "jobs"
 
 PROMPT :: "TRSH > "
 
@@ -47,7 +48,8 @@ shell_iteration :: proc(shell: ^models.Shell) -> models.Error {
     if err != nil {
         return err
     } else if sig_chld {
-        reap_jobs(&shell.state.jobs)
+        jobs.reap_jobs(&shell.state.jobs)
+        jobs.notify_and_clean_jobs(&shell.state.jobs)
         return nil
     }
 
@@ -68,6 +70,8 @@ shell_iteration :: proc(shell: ^models.Shell) -> models.Error {
         return nil
     }
     drain_fd(self_job_pipe.reader, &shell.state)
+    jobs.notify_and_clean_jobs(&shell.state.jobs)
+
     return nil
     
 }
@@ -77,7 +81,7 @@ drain_fd :: proc(fd: posix.FD, shell_state: ^models.Shell_State) {
     for {
         len := posix.read(self_job_pipe.reader, raw_data(drain_buf[:]), len(drain_buf))
         if len > 0 {
-            reap_jobs(&shell_state.jobs)
+            jobs.reap_jobs(&shell_state.jobs)
         } else {
             break
         }
