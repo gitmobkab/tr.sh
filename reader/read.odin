@@ -12,7 +12,7 @@ import "../models"
 self_pipe_read :: proc(self_pipe: models.Process_Pipe) -> (_line: string, _err: models.Error, _sig_chld: bool) {
     max_fd := (self_pipe.reader > posix.STDIN_FILENO ? self_pipe.reader : posix.STDIN_FILENO)
     fd_num := i32(max_fd + 1)
-    
+
     for {
         read_fds_set: posix.fd_set 
         posix.FD_ZERO(&read_fds_set)
@@ -22,7 +22,11 @@ self_pipe_read :: proc(self_pipe: models.Process_Pipe) -> (_line: string, _err: 
         ready_fds := posix.select(fd_num, &read_fds_set, nil, nil, nil)
     
         if ready_fds < 0 {
-            return "", posix.errno(), false
+            err := posix.errno()
+            if err == .EINTR {
+                continue
+            }
+            return "", err, false
         }
         
         if posix.FD_ISSET(posix.STDIN_FILENO, &read_fds_set) {
