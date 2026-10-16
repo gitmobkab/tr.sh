@@ -1,12 +1,12 @@
 package exec
 
 import "core:sys/posix"
-import "core:os"
 
 import "../parser"
 import "../models"
 import "../lookup"
 import "../utils"
+import "../jobs"
 
 
 exec_pipepilines :: proc(pipelines: []parser.Pipeline, shell: ^models.Shell) -> []models.Error {
@@ -29,7 +29,7 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
     errs: [dynamic]models.Error
     defer delete(errs)
 
-    if len(pipeline.commands) == 1 && len(pipeline.commands[0].argv) >= 1 {
+    if pipeline_can_be_handle_as_single_command(pipeline) {
         pid, cmd_errs := handle_single_command(pipeline.commands[0], shell)
         if len(cmd_errs) >= 1 {
             return cmd_errs
@@ -54,24 +54,33 @@ exec_pipeline :: proc(pipeline: parser.Pipeline, shell: ^models.Shell) -> []mode
         append(&errs, ..collect_errs)
     }
 
-    pids_not_empty := len(pids) >= 1
-    if pids_not_empty {
+    waiting_for_children := !pipeline.background && len(pids) >= 1
+    if waiting_for_children {
         if err := set_foreground_pgrp(pids[0]); err != nil {
             append(&errs, err)
         }
     }
     
-    // don't intend on using it right now
-    global_stat_loc: i32
-    for pid in pids {
-        posix.waitpid(pid, &global_stat_loc, {.UNTRACED})
-    }
+    if pipeline.background {
+        id := models.add_new_job(&shell.state.jobs, pids, pids[0], .Running)
+        jobs.notify_job(shell.state.jobs[id], id)
+    } else {
+        status: i32
+        for pid, i in pids {
+            posix.waitpid(pid, &status, {.UNTRACED, .CONTINUED})
+            switch {
+                case posix.WIFSTOPPED(status):
+                    id := models.add_new_job(&shell.state.jobs, pids[i:], pids[0], .Stopped)
+                    jobs.notify_job(shell.state.jobs[id], id)
+            }
+        }
+    }   
 
     for pipe, i in pipes {
         models.close_pipe(pipe)
     }
 
-    if pids_not_empty {
+    if waiting_for_children {
         if err := set_foreground_pgrp(shell.state.pgid); err != nil {
             append(&errs, err)
         }
@@ -222,4 +231,8 @@ exec_command :: proc(
     }
     cmd_pid, fork_errs := exec_as_child_process(executer, exec_context, IO, command.redirects, pgid, shell.signals)
     return cmd_pid, utils.snapshot_dynamic_array(models.Error, errs)
+}
+
+pipeline_can_be_handle_as_single_command :: proc(pipeline: parser.Pipeline) -> bool {
+    return !pipeline.background && len(pipeline.commands) == 1 && len(pipeline.commands[0].argv) >= 1
 }
