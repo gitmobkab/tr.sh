@@ -33,16 +33,40 @@ Process_State :: enum u8 {
     Terminated,
 }
 
-// TODO: too tired
-add_new_job :: proc(pids: []posix.pid_t, jobs: ^Job_Store) {
-    id := get_next_job_id(jobs^)
+add_new_job :: proc(jobs: ^Job_Store, pids: []posix.pid_t, pgid: posix.pid_t, process_state: Process_State = .Running) -> int {
+    process_entries := make([]Process_Entry, len(pids))
+    defer delete(process_entries)
 
+    new_job := Job_Entry{
+        pgid = pgid,
+    }
+
+    for pid, i in pids {
+        current_process_entry := Process_Entry{
+            state = process_state,
+        }
+        process_entries[i] = current_process_entry
+        new_job.processes[pid] = current_process_entry
+    }
+
+    id := get_next_job_id(jobs^)
+    new_job.state = compute_job_state(process_entries)
+    jobs[id] = new_job
+    return id
+}
+
+destroy_job ::proc(jobs: ^Job_Store, job_id: int) {
+    job_entry := &jobs[job_id]
+    delete(job_entry.pipeline_text)
+    delete(job_entry.processes)
+    delete_key(jobs, job_id)
 }
 
 get_next_job_id :: proc(jobs: Job_Store) -> int {
     expected_id := 1
-    for job_id in jobs {
-        if job_id != expected_id {
+    for {
+        _, exist := jobs[expected_id]
+        if !exist {
             return expected_id
         }
         expected_id += 1
@@ -50,28 +74,28 @@ get_next_job_id :: proc(jobs: Job_Store) -> int {
     return expected_id
 }
 
-find_pid_job :: proc(pid: posix.pid_t, jobs: Job_Store) -> (_job_id: int, _job: Job_Entry) {
+find_pid_job :: proc(pid: posix.pid_t, jobs: Job_Store) -> (_job_id: int, _found: bool) {
     for id, job in jobs {
         _, ok := job.processes[pid]
         if ok {
-            return id, job
+            return id, true
         } 
     }
-    return -1, {}
+    return -1, false
 }
 
 compute_job_state :: proc(processes: []Process_Entry) -> Job_State {
     if slice.any_of_proc(processes, process_is_stopped) {
         return .Stopped
     }
-    if slice.all_of_proc(processes, process_is_done) {
+    if slice.all_of_proc(processes, process_is_done_or_terminated) {
         return .Done
     }
     return .Running
 }
 
-process_is_done :: proc(process: Process_Entry) -> bool {
-    return process_is(.Done, process)
+process_is_done_or_terminated :: proc(process: Process_Entry) -> bool {
+    return process_is(.Done, process) || process_is(.Terminated, process)
 }
 
 process_is_stopped :: proc(process: Process_Entry) -> bool {
