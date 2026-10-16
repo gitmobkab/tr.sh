@@ -4,6 +4,8 @@ import "core:sys/posix"
 
 SIGNALS := []posix.Signal{
     .SIGINT,
+    .SIGQUIT,
+    .SIGTSTP,
     .SIGTTIN,
     .SIGTTOU
 }
